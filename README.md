@@ -1,17 +1,18 @@
 # fastmurty
-This code solves the k-best assignments problem. That is, given a matrix of costs it successively finds 1-to-1 assignments of rows to columns, in increasing order of the sum of costs for each column. This problem occurs in, for instance, data association in multi-object tracking or sensor fusion.
-The code uses an optimized version of Murty's algorithm developed by Miller, Stone, and Cox [1]. This version is significantly faster than the classic Murty's algorithm on average and in the worst case. Note that C code for [1] is publicly available from Cox's website [2]. This repo has two advantages:
+This code solves the k-best assignments problem. That is, given a matrix of costs it successively finds 1-to-1 assignments of rows to columns, in increasing order of the total cost of assigned elements. This problem occurs in, for instance, data association in multi-object tracking or sensor fusion.
+Specifically, this is an optimized version of Murty's algorithm developed by Miller, Stone, and Cox [1]. Their version is significantly faster than the classic Murty's algorithm on average and in the worst case. Note that C code for [1] is publicly available from Cox's website [2]. This repo has two advantages:
 
 1. The C code operates on square cost matrices - that is, it finds assignments between two sets of equal size. However, the paper [1] outlines a modification that can handle sets of varying size, with a 'miss cost' for elements from one set that are not matched to any in the other set. This code implements that modification.
 
-2. The C code requests that
-"NEC Research Institute Inc. shall be given a copy of any such derivative work or modified version of the software and NEC Research Institute Inc. and its affiliated companies (collectively referred to as NECI) shall be granted permission to use, copy, modify and distribute the software for internal use and research." I'm not sure what that constitutes, but now I don't need to be!
+2. The C code requests that  
+"NEC Research Institute Inc. shall be given a copy of any such derivative work or modified version of the software and NEC Research Institute Inc. and its affiliated companies (collectively referred to as NECI) shall be granted permission to use, copy, modify and distribute the software for internal use and research."  
+I'm not sure what that constitutes, but now I/you don't need to be!
 
-## Code
+## Dependencies
 Python 2 with numpy. Use in Python 3 will some require modifications - the queue import, range/xrange, etc.
 
 ## Usage
-The file has test code under \_\_main\_\_, which demonstrates its use.
+The file has test code under \_\_main\_\_, which demonstrates its use. The function murty() is an iterator, meaning you get the next assignment by calling next(). Each returned assignment is a tuple (cost, solution). Solution is a tuple of matchings, and a matching is a tuple (i,j), where i and j are row and column indices. If a row is not matched to any columns, the matching will be (i,-1), and similarly for missing columns.
 
 ## Other sources
 Other public implementations of the k-best assignments problem:
@@ -21,7 +22,7 @@ Other public implementations of the k-best assignments problem:
 + [7-12] all implement the unoptimized version of Murty's algorithm.
 
 ## Timed test
-Getting the 25 best assignments from 50x50 uniform-random cost matrices, with infinite miss cost (so that methods that don't consider miss cost can be compared).
+Getting the 25 best assignments from 50x50 uniform-random cost matrices, with infinite miss cost (so that methods that don't consider misses can be compared).
 
 | code | runtime |
 |------|---------|
