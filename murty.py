@@ -2,7 +2,11 @@
 # -*- coding: utf-8 -*-
 """
 Michael Motro, University of Texas at Austin
-last modified 10/22/2018
+last modified 10/23/2018
+
+the function murty() does all the work
+the __main__ code at the bottom tests on random matrices
+
 """
 import numpy as np
 from jv import LAPJVinit, LAPJVfinish
@@ -47,7 +51,10 @@ def murty(P, miss_X, miss_Y):
     # y = matching row indices for each column, or -1
     # v = dual variable (prices) for columns
     # free = list of unresolved columns
-    x,y,v,free = LAPJVinit(c)
+    y = np.argmin(c, axis=0)
+    v = c[y, range(m+n)].copy()
+    x = np.zeros((m+n,), dtype=int) - 1
+    free = LAPJVinit(c, x, y, v)
     LAPJVfinish(c, x, y, v, free)
 
     # cost of this solution
@@ -64,13 +71,14 @@ def murty(P, miss_X, miss_Y):
     # prohibited matches - for rows/columns that are still in the reduced problem
     eliminated = []
     
+    # sorted list insertion is slow, so priority queue is used
+    # the numbers and tuples are stored first because they can be used to sort
+    # sorting on lists or numpy arrays will raise an error
     Q = PriorityQueue()
     Q.put((C, eliminate_i, reduced_x, reduced_y, eliminated, x, v, fixed))
     
     
-    found = set()
-    zzz = 0
-    while not Q.empty() and zzz < 4:
+    while not Q.empty():
         C, eliminate_i, reduced_x, reduced_y, eliminated, x, v, fixed = Q.get()
         
         # convert reduced index tuples to lists, so they can be modified
@@ -82,7 +90,7 @@ def murty(P, miss_X, miss_Y):
         n = len(reduced_y) # number of columns in reduced problem
         c = np.zeros((m+n,m+n))
         c[:m,:n] = P[reduced_x,:][:,reduced_y]
-        c[:m,m:] = inf
+        c[:m,n:] = inf
         c[range(m), range(n,m+n)] = miss_X[reduced_x]
         c[m:,:n] = inf
         c[range(m,m+n), range(n)] = miss_Y[reduced_y]
@@ -104,31 +112,31 @@ def murty(P, miss_X, miss_Y):
             Cnew = sum(c[range(m+n), x])
             Cnew += sum((P[i,j] if j>=0 else miss_X[i]) if i>=0 else miss_Y[j]
                         for i,j in fixed)
+            # check that this is a valid solution - can be deleted to save time
+            assert all(y[j]==i for i,j in enumerate(x))
+            # check that the lower bound was in fact a lower bound - "  "
             assert Cnew - C > -1e-5
-            assert all(y[x[i]]==i for i in xrange(m+n))
-            # put back in queue, will only send when it is the best solution
-            Q.put((Cnew, -1, reduced_x, reduced_y, eliminated, x, v, fixed))
+            if Cnew < inf:
+                # put back in queue, will only send when it is the best solution
+                Q.put((Cnew, -1, reduced_x, reduced_y, eliminated, x, v, fixed))
             
         else:
             # problem already solved, return solution
             # combine matches from reduced matrix with previously fixed matches
-            output = [(reduced_x[i] if i<M else -1, reduced_y[j] if j<n else -1)
+            output = [(reduced_x[i] if i<m else -1, reduced_y[j] if j<n else -1)
                         for i,j in enumerate(x) if i<m or j<n]
             output = tuple(sorted(fixed + output))
-            assert output not in found
-            found.add(output)
             yield (C, output)
-#            zzz += 1
         
             # create problems that don't include this solution
             u = c[range(m+n), x] - v[x]
             slack = c - u[:,None] - v[None,:]
-#            assert np.all(slack >= -1e-5)
+            #assert np.all(slack >= -1e-5)
             slack[range(m+n),x] = inf
             while m > 0 and n > 0:
                 # get the lower bound for each removed match
-                # don't include the all-zero submatrix
-                includex = range(m) + list(np.where(x[m:] < n)[0])
+                # don't include the aux submatrix
+                includex = [i for i,j in enumerate(x) if i<m or j<n]
                 minslack_X = np.min(slack[includex,:], axis=1)
                 minslack_Y = np.min(slack[:,x[includex]], axis=0)
                 minslack_X = np.maximum(minslack_X, minslack_Y)
@@ -161,8 +169,8 @@ def murty(P, miss_X, miss_Y):
                         # the aux submatrix actually doesn't match this row/col
                         # make an equivalent match, in order to remove them
                         current_aux_j = x[next_i_aux]
-                        #current_aux_i = next((i for i,j in enumerate(x) if j==next_j_aux), None)
-                        current_aux_i = np.where(x==next_j_aux)[0][0]
+                        current_aux_i = next((i for i,j in enumerate(x)
+                                                if j==next_j_aux), None)
                         assert current_aux_j >= n
                         assert current_aux_i >= m
                         x[current_aux_i] = current_aux_j
@@ -187,27 +195,27 @@ def murty(P, miss_X, miss_Y):
                     n -= 1
                 elif next_i < m:
                     # reduce a row and a corresponding auxiliary column
-                    next_j_aux = next_i + n
+                    assert next_j == next_i + n
                     reduce_i = range(next_i) + range(next_i+1, m+n)
-                    reduce_j = range(next_j_aux) + range(next_j_aux+1, m+n)
+                    reduce_j = range(next_j) + range(next_j+1, m+n)
                     x = x[reduce_i]
-                    x[x > next_j_aux] -= 1
-                    eliminated = [(i - (i>next_i), j - (j>next_j_aux))
+                    x[x > next_j] -= 1
+                    eliminated = [(i - (i>next_i), j - (j>next_j))
                                   for i,j in eliminated if
-                                    i!=next_i and j!=next_j_aux]
+                                    i!=next_i and j!=next_j]
                     fixed_next_i = reduced_x.pop(next_i)
                     fixed.append((fixed_next_i, -1))
                     m -= 1
                 elif next_j < n:
                     # reduce a column and corresponding auxiliary row
-                    next_i_aux = next_j + m
-                    reduce_i = range(next_i_aux) + range(next_i_aux+1, m+n)
+                    assert next_i == next_j + m
+                    reduce_i = range(next_i) + range(next_i+1, m+n)
                     reduce_j = range(next_j) + range(next_j+1, m+n)
                     x = x[reduce_i]
                     x[x > next_j] -= 1
-                    eliminated = [(i - (i>next_i_aux), j - (j>next_j))
+                    eliminated = [(i - (i>next_i), j - (j>next_j))
                                   for i,j in eliminated if
-                                    i!=next_i_aux and j!=next_j]
+                                    i!=next_i and j!=next_j]
                     fixed_next_j = reduced_y.pop(next_j)
                     fixed.append((-1, fixed_next_j))
                     n -= 1
@@ -221,10 +229,10 @@ def murty(P, miss_X, miss_Y):
 if __name__ == '__main__':
     from time import time
     
-    M = 50
+    M = 30
     N = 50
     n_solutions = 25
-    n_repeats = 50
+    n_repeats = 20
     
     totaltime = 0.
     allcosts = []
@@ -232,16 +240,16 @@ if __name__ == '__main__':
         # uniform
         P = np.random.rand(M,N)
         # exponential
-        #P = -np.log(P)
-        P.tofile('test{:2d}.csv'.format(repeat))
+        P = -np.log(P)
+        #P.tofile('test{:2d}.bin'.format(repeat))
         
         # consider missing rows and columns
-        #miss_X = P[1:,0]
-        #miss_Y = P[0,1:]
-        #P = P[1:,1:]
+        miss_X = P[1:,0]
+        miss_Y = P[0,1:]
+        P = P[1:,1:]
         # don't allow missing rows or columns, will only have solutions if M==N
-        miss_X = np.zeros((M,)) + inf
-        miss_Y = np.zeros((N,)) + inf
+        #miss_X = np.zeros((M,)) + inf
+        #miss_Y = np.zeros((N,)) + inf
 
         costs = []  
         
@@ -253,5 +261,5 @@ if __name__ == '__main__':
             costs.append(C)
         totaltime += time()
         
-        np.save('msc{:2d}.npy'.format(repeat), costs)
+        #np.save('msc{:2d}.npy'.format(repeat), costs)
     print(totaltime * (1000. / n_repeats)) # average runtime in milliseconds
