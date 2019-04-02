@@ -1,35 +1,28 @@
 #!/usr/bin/env python2
 # -*- coding: utf-8 -*-
 """
-Michael Motro github.com/motrom/fastmurty last modified 4/2/19
-
-This is a simulation of 3-d point targets detected with 3 sensors, each of which
-only sees two axes.
-Two data association steps are used, between sensors 1 and 2 and between the 
-resulting estimates and sensor 3.
-The test parameters and the number of hypotheses (associations) can be altered to 
-determine how accuracy and runtime scale with problem difficulty and hypothesis count.
+last mod 3/11/19
 """
 
 import numpy as np
 from time import time
-from mhtdaClink import sparse, mhtda, allocateWorkvarsforDA, processOutput
-from mhtdaClink import allocateWorkvarsforSSP, SSP # used for evaluation
-from mhtdaClink import sparsifyByRow as sparsify
+#from daSparse import da, allocateWorkVarsforDA
+#from sparsity import sparsify
+from daDense import da, allocateWorkVarsforDA
+from sspDense import SSP # used for evaluation
 
 
-""" settings """
-ntests = 100
+
+ntests = 10
+max_ns = 1000
+max_nhyp = 1000
+s = 10
 entryrate = 100 # poisson rate of object entry
 fpratio = .005 # poisson rate of fp msmts, wrt entry rate
 detect_rate = .995 # detection probability at each time
 std = .001 # standard deviation of msmt noise
-miss_distance_cutoffs = np.arange(.1,1.01,.1) # for scoring object detection performance
-np.random.seed(0)
-# tracker settings
-max_ns = 600
-max_nhyp = 1000
-s = 10 # assumed sparsity - part of estimate, not enforced in actual simulation
+miss_distance_cutoffs = np.arange(.1,1.01,.1)
+np.random.seed(34)
 
 
 fprate = fpratio*entryrate
@@ -142,19 +135,26 @@ def update2(update_matches2, update_matches, new_samples, new_weights, msmts1, m
                 new_sample[1] = msmts1[id1,1] + msmts3[id3,0]
                 new_sample[2] = msmts2[id2,1] + msmts3[id3,1]
                 
-workvarsforscoring = allocateWorkvarsforSSP(entryrate, entryrate + int(fprate*6) + 3)
+
 def scoreObj(tru, est):
     c2 = [[sum(np.square(sample[:3]-truobj)) for sample in est] for truobj in tru]
     c2 = np.sqrt(c2)
     m,n = c2.shape
+    x = np.zeros(m, dtype=int)
+    y = np.zeros(n, dtype=int)
+    pred = np.zeros(n, dtype=int)
+    d = np.zeros(n,)
+    v = np.zeros(n,)
+    rows2use = np.arange(m)
+    cols2use = np.arange(n)
     scores = []
     for miss_cutoff in miss_distance_cutoffs:
-        c = c2 - miss_cutoff
-        if sparse:
-            c = sparsify(c, s)
-        x, y = SSP(c, workvarsforscoring)
-        nFN = sum(np.array(x)==-1)
-        nFP = sum(np.array(y)==-1)
+        x[:] = -1
+        y[:] = -1
+        v[:] = 0
+        SSP(c2 - miss_cutoff, x, y, v, rows2use, m, cols2use, n, d, pred)
+        nFN = sum(x==-1)
+        nFP = sum(y==-1)
         scores.append((nFN,nFP,m,n))
     return np.array(scores)
 
@@ -191,8 +191,6 @@ track_scores_all = np.zeros(4, dtype=int)
 samples = np.zeros((max_ns, 6))
 weights = np.zeros((max_ns,))
 hypotheses = np.zeros((max_nhyp, max_ns), dtype=bool)
-out_assocs = np.zeros((max_nhyp, max_ns+max_nm, 2), dtype=np.int32)
-out_y = np.zeros(max_nm, dtype=bool)
 hypothesis_weights = np.zeros((max_nhyp,))
 ids = np.zeros((max_ns,), dtype=np.uint16)
 ns = 0
@@ -206,16 +204,15 @@ c1 = np.zeros((max_ns, max_nm))
 c2 = c1.copy()
 update_matches = np.zeros((max_ns, 2), dtype=int)
 update_matches2 = np.zeros((max_ns, 2), dtype=int)
-workvars = allocateWorkvarsforDA(max_ns, max_nm, max_nhyp)
-backidx1 = np.zeros((max_ns, max_nm), dtype=int)
+workvars = allocateWorkVarsforDA(max_ns, max_nm, max_nhyp)
+sols_rows2use, sols_cols2use, sols_elim, sols_x, sols_v, backidx1 = workvars
 backidx2 = backidx1.copy()
-row_sets = np.zeros((1,max_ns), dtype=np.bool8)
-col_sets = np.zeros((1,max_nm), dtype=np.bool8)
+row_sets = np.zeros((1,max_ns), dtype=bool)
+col_sets = np.zeros((1,max_nm), dtype=bool)
 includerowsorcols_dummy = np.zeros(1)
 
 
 for test in xrange(ntests):
-    print("test {:d}".format(test))
     # generate real objects
     tru_m = entryrate#np.random.poisson(entryrate)
     tru = np.random.rand(tru_m, 3)
@@ -254,28 +251,25 @@ for test in xrange(ntests):
     tru_tracks = np.append(tru_tracks, tru_tracks_false, axis=0)
     nm3 = nreal+nfalse
     
-    
     # first update
     timed_total = time()
     likelihood1(c1, msmts1, msmts2)
-    c = sparsify(c1, s) if sparse else c1
+    cs = c1#cs = sparsify(c1, s)
     
     row_sets[0,:nm1] = True
     row_sets[0,nm1:] = False
     col_sets[0,:nm2] = True
     col_sets[0,nm2:] = False
     timed_start = time()
-    out_assocs[:] = -2
-    mhtda(c, row_sets, includerowsorcols_dummy, col_sets, includerowsorcols_dummy,
-           out_assocs, hypothesis_weights, workvars)
-    ns = processOutput(update_matches, hypotheses, out_assocs, backidx1, max_ns)
+    da(cs, row_sets, includerowsorcols_dummy, col_sets, includerowsorcols_dummy,
+           update_matches, hypotheses, hypothesis_weights,
+           sols_rows2use, sols_cols2use, sols_elim, sols_x, sols_v, backidx1)
     timed_update = time() - timed_start
     ns = update1(update_matches, msmts1, msmts2, samples, weights)
-
     
     # find likelihood between updated objects and third set of measurements
     likelihood2(c2, samples, weights, ns, msmts3)
-    c = sparsify(c2, s) if sparse else c2
+    cs = c2#cs = sparsify(c2, s)
     # account for the fact that each row miss is normalized
     missliks = np.log(1-weights*detect_rate)
     missliks_hyp = np.dot(hypotheses, missliks)
@@ -285,16 +279,13 @@ for test in xrange(ntests):
     
     # second update
     timed_start = time()
-    out_assocs[:] = -2
-    mhtda(c, hypotheses, hypothesis_weights, col_sets, includerowsorcols_dummy,
-               out_assocs, new_hypothesis_weights, workvars)
-    processOutput(update_matches2, new_hypotheses, out_assocs, backidx2,
-                  max_ns)
+    da(cs, hypotheses, hypothesis_weights, col_sets, includerowsorcols_dummy,
+           update_matches2, new_hypotheses, new_hypothesis_weights,
+           sols_rows2use, sols_cols2use, sols_elim, sols_x, sols_v, backidx2)
     timed_update += time() - timed_start
     new_ns = update2(update_matches2, update_matches, new_samples, new_weights,
                      msmts1, msmts2, msmts3)
     timed_total = time() - timed_total 
-
 
     ## analysis of how hypotheses match truth, for debugging purposes
     tru_matches_1_valid = (tru_tracks[:,0] >= 0) | (tru_tracks[:,1] >= 0)
@@ -336,5 +327,5 @@ obj_score_rates = obj_scores_all[:,:2].astype(float)/obj_scores_all[:,2:]
 track_score_rates = track_scores_all[:2].astype(float)/track_scores_all[2:]
 #score_rates = track_score_rates
 score_rates = np.append(track_score_rates[None,:], obj_score_rates, axis=0)
-print("{:.1f} ms update, {:.1f} ms total".format(timed_update_all, timed_total_all))
+print("{:.1f} update, {:.1f} total".format(timed_update_all, timed_total_all))
 print(score_rates)

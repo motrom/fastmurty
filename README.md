@@ -4,12 +4,19 @@ Murty's algorithm is a well-known solution to the *k*-best assignments problem, 
 A paper on the optimizations in question has been submitted to the IEEE FUSION 2019 conference.
 
 ## Dependencies
-Python 2 with numpy and numba. Numba can be removed without changing the functionality, but has a decimal-place impact on speed. Porting to Python 3 may require some modifications - range/xrange, etc.  
-I plan to release a C version with a simple Python connector. Let's say within a month...
+The code was written in C with only standard library dependencies, for relatively easy porting to Python, MATLAB, C++, etc. A Python 2.7 port is included, and requires numpy. The Python-compiling package Numba is also used to reach high speeds in example_3frame.py, but can be removed without changing the functionality. Use in Python 3 may require some small modifications. The sparse input matrix is formatted with an equivalent structure to the column-ordered matrix of the CXSparse package, but CXSparse is not required.
 
 ## Usage
-daDense.py and daSparse.py each have a function da() that accept dense or sparse cost matrices as input. The sparsify() function from sparsity.py is an easy way to put a dense matrix into the right sparse format. da() also takes row and column subset arguments, pre-allocated output variables, and some workspace matrices. There are three output variables: out_matches is an array of (i,j) pairs representing matches between rows and columns, out_assocs is a binary matrix where each row is an association and each column corresponds to a row of out_matches, and out_costs is an array giving the total cost of each association in out_assocs. The workspace matrices can be made by the function allocateWorkVarsforDA(). They are allocated outside of the function because data association will be called repeatedly in a multi-object tracking algorithm.  
-The example files show the functions used on some simple matrices. 2frame just uses uniformly random matrices with a single input association, while 3frame sets up Euclidean points in 3D space.
+"make" will make a shared library file "mhtda.so" to be used in other programs. The expected use is:
+
+    workvars = mhtda.allocateWorkvarsforDA(max_nrows, max_ncolumns, max_nassociations)
+    err = mhtda.da(inputs..., outputs..., workvars)    /// err should be 0
+    mhtda.deallocateWorkvarsforDA(workvars) /// optional
+
+The exact form of all inputs and outputs is explained in da.h.  
+There are two versions of the code, one which takes a normal cost matrix as input and one which tkaes a sparse matrix structure. Which version is compiled is determined by the "-D SPARSE" flag that can be turned on or off in the makefile. The Python link file has an example of creating a sparse matrix from a dense one.  
+The other compilation option is "-D NDEBUG". If disabled, it will turn on several checks for solution accuracy. If you are suspicious of results on a certain problem, disable this option (and contact me if there is in fact a bug!).  
+mhtdaClink.py uses Python's ctypes library to access these functions. The example files apply the algorithm to some simple problems. 2frame uses uniformly random matrices with a single input association, while 3frame sets up a 3D point-target sensor fusion problem, described in more detail in the file.
 
 ## Other sources
 Other public implementations of the k-best assignments problem:
@@ -17,7 +24,9 @@ Other public implementations of the k-best assignments problem:
 + C Code for [1] is available at [3].
 + C++ code and a Matlab interface for [2] are available at [4].
 + [5] and [6] provide binaries that implement k-best assignments, but don't have source code online and don't go into detail about the implementation.
-+ [7-12] all implement the unoptimized version of Murty's algorithm, which has worst-case *O(kN^4)* runtime where *N* is the number of rows/columns. An optimized version is *O(kN^3)* and a highly sparse version is *O(kN^2)* (and in typical cases *O(kN)*).
++ [7-12] all implement the unoptimized version of Murty's algorithm, which has worst-case *O(kN^4)* runtime where *N* is the number of rows/columns. An optimized version is *O(kN^3)* and a highly sparse version is *O(kN^2)* (in typical cases runtime seems to be *O(kN)*).
++ [13] implements an unoptimized version but uses parallelization via OpenCL. There is a corresponding write-up that shows that their implementation is much faster with parallelization than without.
++ [14] is not free and doesn't describe its implementation (at least pre-purchase)
 
 [1] Miller, M. L., et al. “Optimizing Murty’s Ranked Assignment Method.” IEEE Transactions on Aerospace and Electronic Systems, vol. 33, no. 3, July 1997, pp. 851–62.  
 [2] Crouse, David F. "On implementing 2D rectangular assignment algorithms." IEEE Transactions on Aerospace and Electronic Systems 52.4 (2016): 1679-1696.  
@@ -30,4 +39,6 @@ Other public implementations of the k-best assignments problem:
 [9] https://gist.github.com/ryanpeach/738b560fd903857c061063d25b3c8225  
 [10] https://github.com/fbaeuerlein/MurtyAlgorithm  
 [11] https://github.com/cosmo-epfl/glosim/blob/master/libmatch/lap/murty.py  
-[12] http://ba-tuong.vo-au.com/codes.html
+[12] http://ba-tuong.vo-au.com/codes.html  
+[13] https://github.com/nucleusbiao/Pedestrian-Tracking-using-SMC-LMB-with-OpenCL  
+[14] https://www.mathworks.com/products/sensor-fusion-and-tracking.html
