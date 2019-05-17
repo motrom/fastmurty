@@ -12,7 +12,7 @@ from time import time
 from mhtdaClink import sparse, mhtda, allocateWorkvarsforDA
 from mhtdaClink import sparsifyByRow as sparsify
 
-np.random.seed(23)
+np.random.seed(0)
 numtests = 40
 nsols = 200
 sizes = np.arange(10, 301, 10)
@@ -23,7 +23,6 @@ for size in sizes:
     print("running size {:d}".format(size))
     #max_val = -.1 # misses will occur (but are unlikely for large matrices)
     max_val = -float(size+1) # to ensure that misses are never picked
-#    noutsamples = size*10
     timed_total = 0.
     relative_cost = 0.
     this_sparsity = min(30, size)
