@@ -91,28 +91,20 @@ int da(inputmatrixtype c, int nrow_priors, bool* row_priors, double* row_prior_w
 	    const double eps_debug = 0.00000001;
         bool passed = true;
 	    int ri, ri2, cj, cj2;// id, jd, j2d, ;
-	    //double ud, slackd, Cd;
 	#endif
 
 
     m = workvars->m;
     n = workvars->n;
-	if ((m == 0) || (K == 0) || (nrow_priors == 0)) {
+	if ((K == 0) || (nrow_priors == 0) || (ncol_priors == 0)) {
 		for (k = 0; k < K; k++) {
 			out_costs[k] = inf;
 		}
 		return 0;
 	}
-    if((n == 0) || (ncol_priors == 0)){
-        for(j=0; j<n; j++){
-            out_assocs[j] = -1;
-        }
-        out_costs[0] = 0;
-        for(k=1; k<K; k++){
-            out_costs[k] = inf;
-        }
-        return 0;
-    }
+	for (j=0; j < K*(m+n)*2; j++){
+	    out_assocs[j] = -2;
+	}
 
 	// prep variables
 	subproblemsize = sizeofSubproblemData(m, n);
