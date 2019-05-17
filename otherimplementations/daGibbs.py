@@ -3,8 +3,11 @@
 """
 This is based on the pseudocode given in "Efficient Implementation..." by
 B.N. Vo and B.T. Vo
-The step of removing duplicate associations is not included in the timing analysis.
-This step could be performed in several ways... a hashtable by likelihood is
+This code is not necessarily a great implementation, it is primarily intended for
+the comparison of Gibbs and deterministic algorithms in the paper.
+Notably, the step of removing duplicate associations was not coded optimally.
+That step is therefore not included in the paper's timing analysis.
+That step could be performed in several ways... a hashtable by likelihood is
 probably the fastest way but is difficult to create in Numba.
 """
 
