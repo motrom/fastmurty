@@ -38,7 +38,7 @@ for size in sizes:
     backidx = np.zeros((size+1,size+1), dtype=int)
     second_hypotheses = np.zeros((nsols, size2), dtype=np.bool8)
     
-    for test in xrange(numtests):
+    for test in range(numtests):
         cd = np.random.rand(size, size) + max_val
         c1 = sparsify(cd, this_sparsity) if sparse else cd
         
@@ -57,7 +57,7 @@ for size in sizes:
         matches = matches[matches[:,0] > -2]
         backidx[matches[:,0],matches[:,1]] = np.arange(matches.shape[0])
         second_hypotheses[:] = False
-        for solution in xrange(nsols):
+        for solution in range(nsols):
             association = out_associations[solution]
             association = association[association[:,0] > -2]
             association = backidx[association[:,0], association[:,1]]

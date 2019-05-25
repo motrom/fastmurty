@@ -9,6 +9,7 @@ or all-miss associations.
 """
 from scipy.optimize import linear_sum_assignment
 from heapq import heappush, heappop
+from itertools import chain
 
 inf = 1e8
 
@@ -21,9 +22,9 @@ def da(c):
     solrow = solrow[matches]
     solcol = solcol[matches]
     cost = sum(c[solrow, solcol])
-    assocs = (zip(solrow, solcol) + 
-              [(row,-1) for row in range(c.shape[0]) if row not in solrow] +
-              [(-1,col) for col in range(c.shape[1]) if col not in solcol])
+    assocs = chain(zip(solrow, solcol),
+                   ((row,-1) for row in range(c.shape[0]) if row not in solrow),
+                   ((-1,col) for col in range(c.shape[1]) if col not in solcol))
     return cost, assocs
 
 def mhtda(c, row_priors, row_prior_weights, col_priors, col_prior_weights,
@@ -36,8 +37,8 @@ def mhtda(c, row_priors, row_prior_weights, col_priors, col_prior_weights,
     
     for row_set, row_set_weight in zip(row_priors, row_prior_weights):
         for col_set, col_set_weight in zip(col_priors, col_prior_weights):
-            row_set = [row for row in xrange(orig_c.shape[0]) if row_set[row]]
-            col_set = [col for col in xrange(orig_c.shape[1]) if col_set[col]]
+            row_set = [row for row in range(orig_c.shape[0]) if row_set[row]]
+            col_set = [col for col in range(orig_c.shape[1]) if col_set[col]]
             priorcost = row_set_weight + col_set_weight
             c = orig_c[row_set,:][:,col_set].copy()
             cost, assocs = da(c)
@@ -46,7 +47,7 @@ def mhtda(c, row_priors, row_prior_weights, col_priors, col_prior_weights,
             cost += priorcost
             heappush(Q, (cost, priorcost, (), assocs, row_set, col_set, []))
     
-    for solution in xrange(out_assocs.shape[0]):
+    for solution in range(out_assocs.shape[0]):
         cost, priorcost, fixed_assocs, orig_assocs, row_set, col_set,\
                                         eliminate = heappop(Q)
         solution_assocs = sorted(fixed_assocs + orig_assocs)

@@ -1,4 +1,3 @@
-#!/usr/bin/env python2
 # -*- coding: utf-8 -*-
 """
 Michael Motro github.com/motrom/fastmurty 4/2/19
@@ -28,15 +27,15 @@ class Subproblem(Structure):
                 ("solution", Solution)]
 class QueueEntry(Structure):
     _fields_ = [("key", c_double), ("val", POINTER(Subproblem))]
+class cs_di_sparse(Structure):
+    _fields_ = [("nzmax", c_int),
+                ("m", c_int),
+                ("n", c_int),
+                ("p", POINTER(c_int)),
+                ("i", POINTER(c_int)),
+                ("x", POINTER(c_double)),
+                ("nz", c_int)]
 if sparse:
-    class cs_di_sparse(Structure):
-        _fields_ = [("nzmax", c_int),
-                    ("m", c_int),
-                    ("n", c_int),
-                    ("p", POINTER(c_int)),
-                    ("i", POINTER(c_int)),
-                    ("x", POINTER(c_double)),
-                    ("nz", c_int)]
     class PathTypessp(Structure):
         _fields_ = [("val", c_double),
                     ("i", c_int),
@@ -230,9 +229,9 @@ def processOutput(matches, hypotheses, out_assocs, backward_index, n_matches):
     matches[:] = -1
     backward_index[:] = -1
     hypotheses[:] = False
-    for k in xrange(nsols):
+    for k in range(nsols):
         hypothesis = hypotheses[k]
-        for rr in xrange(out_assocs.shape[1]):
+        for rr in range(out_assocs.shape[1]):
             i,j = out_assocs[k,rr]
         #for i,j in out_assocs[k]:
             if i == -2: break

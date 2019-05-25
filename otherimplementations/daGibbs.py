@@ -1,6 +1,7 @@
 #!/usr/bin/env python2
 # -*- coding: utf-8 -*-
 """
+github.com/motrom/fastmurty last mod 5/25/19
 This is based on the pseudocode given in "Efficient Implementation..." by
 B.N. Vo and B.T. Vo
 This code is not necessarily a great implementation, it is primarily intended for
@@ -14,8 +15,16 @@ probably the fastest way but is difficult to create in Numba.
 import numpy as np
 import numba as nb
 from random import random
-from sspSparse import nbsparsedtype
 
+sparsedtype = np.dtype([('x', np.float64), ('idx', np.int64)])
+nbsparsedtype = nb.from_dtype(sparsedtype)
+def sparsify(c, s): # keep s lowest elements for each row
+    c2 = np.zeros((c.shape[0],s), dtype=sparsedtype)
+    for i, ci in enumerate(c):
+        colsinorder = np.argsort(ci)
+        c2[i]['idx'] = colsinorder[:s]
+        c2[i]['x'] = ci[colsinorder[:s]]
+    return c2
 
 @nb.njit(nb.void(nbsparsedtype[:,:], nb.i8[:], nb.i8[:,:], nb.f8[:], nb.i8,
               nb.f8[:], nb.b1[:]))
@@ -34,8 +43,8 @@ def gibbs(c, x, out, out_costs, niter, costs, occupied):
     out_costs[0] = np.prod(costs)
     missprob = 1.
     
-    for t in xrange(1, niter):
-        for i in xrange(m):
+    for t in range(1, niter):
+        for i in range(m):
             j1 = x[i]
             if j1 != -1:
                 occupied[j1] = False
@@ -83,7 +92,7 @@ if __name__ == '__main__':
     The input matrices are set to be mostly positive for this reason.
     """
     from time import time
-    from sspSparse import LAPJV, sparsify, heapdtype
+    from scipy.optimize import linear_sum_assignment
     
     np.random.seed(23)
     numtests = 100
@@ -97,18 +106,12 @@ if __name__ == '__main__':
     runtimes = np.zeros(len(niters))
     costs = np.zeros(len(niters))
     relcosts = np.zeros(len(niters))
-    x = np.zeros(m, dtype=int)
-    y = np.zeros(n, dtype=int)
-    pred = np.zeros(n, dtype=int)
-    v = np.zeros(n)
-    d = np.zeros(m*sparsity+m, dtype=heapdtype)
-    rows2use = np.arange(m)
-    cols2use = np.arange(n)
+    x = np.zeros(m, dtype=np.int64)
     out = np.zeros((100000, m), dtype=int)
     out_costs = np.zeros(100000)
     costs_struct = np.ones(m, dtype=np.float64)
     occupied_struct = np.zeros(n, dtype=np.bool8)
-    for test in xrange(numtests):
+    for test in range(numtests):
         # random matrix
         clog = np.random.rand(m,n) - .05
 #        # 'geometric' matrix - detecting 1d points with white noise
@@ -121,8 +124,11 @@ if __name__ == '__main__':
         
         for k, niter in enumerate(niters):
             out[:] = 0
+            solrow, solcol = linear_sum_assignment(clog)
+            x[:] = -1
+            matches = clog[solrow,solcol] < 0
+            x[solrow[matches]] = solcol[matches]
             timed_start = time()
-            LAPJV(clogs, x, y, v, rows2use, m, cols2use, n, d, pred)
             gibbs(c, x, out, out_costs, niter, costs_struct, occupied_struct)
             timed_end = time()
             runtimes[k] += (timed_end-timed_start)
@@ -135,4 +141,4 @@ if __name__ == '__main__':
     runtimes *= 1000 / numtests
     costs /= numtests
     relcosts /= numtests
-    print zip(niters, relcosts, runtimes)
+    print(list(zip(niters, relcosts, runtimes)))

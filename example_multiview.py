@@ -1,4 +1,3 @@
-#!/usr/bin/env python2
 # -*- coding: utf-8 -*-
 """
 Michael Motro github.com/motrom/fastmurty last modified 4/2/19
@@ -71,7 +70,7 @@ def likelihood2(c, samples, weights, ns, msmts3):
     twopiterm = np.log(2*np.pi)*.5
     msmt_var = std**2 * 2
     nm = len(msmts3)
-    for i in xrange(ns):
+    for i in range(ns):
         sample = samples[i]
         if sample[5] == -1: # only msmt1, so only match on 2nd dimension
             constant_term_i = third_miss_loglik
@@ -214,7 +213,7 @@ col_sets = np.zeros((1,max_nm), dtype=np.bool8)
 includerowsorcols_dummy = np.zeros(1)
 
 
-for test in xrange(ntests):
+for test in range(ntests):
     print("test {:d}".format(test))
     # generate real objects
     tru_m = entryrate#np.random.poisson(entryrate)

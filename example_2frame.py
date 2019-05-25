@@ -32,7 +32,7 @@ for size in sizes:
     input_hypothesis = np.ones((1, size), dtype=np.bool8)
     input_score = np.zeros(1)
     
-    for test in xrange(numtests):
+    for test in range(numtests):
         cd = np.random.rand(size, size) + max_val
         c = sparsify(cd, this_sparsity) if sparse else cd
         
