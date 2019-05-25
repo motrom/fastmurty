@@ -127,7 +127,7 @@ def mhtda(c, row_sets, row_set_weights, col_sets, col_set_weights,
     err = lib.da(c_c, nrowpriors, row_sets_c, row_set_weights_c,
                ncolpriors, col_sets_c, col_set_weights_c,
                nsols, out_assocs_c, out_costs_c, byref(workvars))
-    assert err == 0
+    assert err == 0, "not enough valid solutions"
 
 def SSP(c, workvars):
     """

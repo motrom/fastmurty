@@ -127,7 +127,7 @@ int da(inputmatrixtype c, int nrow_priors, bool* row_priors, double* row_prior_w
     }
 
     // find best solutions for each input hypothesis
-    worstsol = Q[1];
+    if (K==1) worstsol = Q[0]; else worstsol = Q[1];
     for(rowprior_idx=0; rowprior_idx < nrow_priors; rowprior_idx++){
         // partition so included rows are first
         m2 = 0;
@@ -189,7 +189,7 @@ int da(inputmatrixtype c, int nrow_priors, bool* row_priors, double* row_prior_w
         Qsize = K-k-1;
 
         bestsol = qPopMin(Q, Qsize);
-        if(bestsol.key > inf){
+        if(bestsol.key >= inf){
             // less than K valid associations
             for(solidx=k; solidx<K; solidx++){
                 out_costs[solidx] = inf;
