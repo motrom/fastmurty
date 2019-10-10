@@ -15,8 +15,8 @@ from mhtdaClink import sparsifyByRow as sparsify
 np.random.seed(0)
 numtests = 100
 nsols = 200
-sizes = np.arange(150, 301, 10)
-sparsity = 30 # elements per row
+sizes = np.arange(10, 301, 10)
+sparsity = 20 # elements per row
 
 my_results = []
 for size in sizes:
@@ -25,7 +25,7 @@ for size in sizes:
     max_val = -float(size+1) # to ensure that misses are never picked
     timed_total = 0.
     relative_cost = 0.
-    this_sparsity = min(30, size)
+    this_sparsity = min(sparsity, size)
     size2 = size*(this_sparsity+2)
     workvars = allocateWorkvarsforDA(size, size, nsols)
     workvars2 = allocateWorkvarsforDA(size2, size, nsols)
@@ -44,10 +44,6 @@ for size in sizes:
         
         cd = np.random.rand(size2, size) + max_val
         c2 = sparsify(cd, this_sparsity) if sparse else cd    
-        
-        #if size < 150:
-        #    continue
-        #print("test {:d}".format(test))
             
         out_associations[:] = -2
         mhtda(c1, input_hypothesis, input_score, input_hypothesis, input_score,

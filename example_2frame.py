@@ -13,10 +13,10 @@ from mhtdaClink import sparse, mhtda, allocateWorkvarsforDA
 from mhtdaClink import sparsifyByRow as sparsify
 
 np.random.seed(0)
-numtests = 40
+numtests = 100
 nsols = 200
 sizes = np.arange(10, 301, 10)
-sparsity = 30 # elements per row
+sparsity = 20 # elements per row
 
 my_results = []
 for size in sizes:
