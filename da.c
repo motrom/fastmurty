@@ -31,7 +31,7 @@ WorkvarsforDA allocateWorkvarsforDA(int m, int n, int nsols){
 								sizeof(int)*(m + n) + sizeof(bool)*n;
 	size_t fullsize = (subproblemsize + sizeof(Subproblem))*(nsols+1);
 	fullsize += sizeof(QueueEntry)*nsols;
-	char* buffer = malloc(fullsize);
+	char* buffer = (char*) malloc(fullsize);
 	assert(buffer != NULL);
 	workvars.buffer = buffer;
 	workvars.currentproblem = (Subproblem*) buffer;
